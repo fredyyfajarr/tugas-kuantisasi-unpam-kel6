@@ -5,37 +5,55 @@ from PIL import Image
 import io
 import matplotlib.pyplot as plt
 
-# --- KONFIGURASI HALAMAN & CSS ---
+# --- 1. KONFIGURASI HALAMAN & CSS ---
 st.set_page_config(
-    page_title="Aplikasi Kuantisasi - Kelompok 6",
+    page_title="Quantization App - Kelompok 6",
     page_icon="🎨",
     layout="wide"
 )
 
-# Custom CSS untuk header warna UNPAM
+# Custom CSS untuk mempercantik UI
 st.markdown("""
     <style>
+        /* Mengatur padding atas agar tidak terlalu renggang */
         .block-container {
-            padding-top: 2rem;
+            padding-top: 1rem;
             padding-bottom: 2rem;
         }
+        /* Judul Utama berwarna Biru UNPAM */
         h1 {
-            color: #004aad; /* Biru UNPAM */
+            color: #004aad;
+            font-weight: 700;
         }
-        .stMetric {
-            background-color: #f0f2f6;
+        /* Styling untuk METRIC (Kotak MSE/PSNR) agar seperti kartu */
+        div[data-testid="metric-container"] {
+            background-color: #ffffff;
+            border: 1px solid #e0e0e0;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            text-align: center;
+        }
+        /* Styling Footer */
+        .footer {
+            position: fixed;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            background-color: #f1f1f1;
+            color: #555;
+            text-align: center;
             padding: 10px;
-            border-radius: 5px;
+            font-size: 12px;
+            border-top: 1px solid #ddd;
+            z-index: 100;
         }
     </style>
 """, unsafe_allow_html=True)
 
-# --- FUNGSI LOGIKA (BACKEND) ---
+# --- 2. FUNGSI LOGIKA (BACKEND) ---
 
 def calculate_mse_psnr(original, compressed):
-    """
-    Menghitung MSE dan PSNR.
-    """
     mse = np.mean((original - compressed) ** 2)
     if mse == 0:
         return 0, 100
@@ -44,168 +62,179 @@ def calculate_mse_psnr(original, compressed):
     return mse, psnr
 
 def quantize_channel_histogram_based(channel_array, bits):
-    """
-    Algoritma Inti: Membagi pixel menjadi kelompok dengan jumlah anggota rata (Non-Uniform).
-    Menggunakan pandas qcut untuk 'Equal Frequency Binning'.
-    """
     flat = channel_array.flatten()
     num_levels = 2 ** bits
-    
     try:
-        # qcut membagi data menjadi n kelompok dengan jumlah item yang sama
         quantized_flat = pd.qcut(flat, q=num_levels, labels=False, duplicates='drop')
     except ValueError:
-        # Fallback jika data terlalu seragam
         quantized_flat = pd.qcut(flat, q=num_levels, labels=False, duplicates='drop')
-
     return quantized_flat.reshape(channel_array.shape).astype(np.uint8)
 
 def process_image(image, bits):
     img_array = np.array(image)
+    r_channel, g_channel, b_channel = img_array[:,:,0], img_array[:,:,1], img_array[:,:,2]
     
-    # Pisahkan Kanal RGB
-    r_channel = img_array[:,:,0]
-    g_channel = img_array[:,:,1]
-    b_channel = img_array[:,:,2]
-    
-    # Proses Kompresi per Kanal
     r_new = quantize_channel_histogram_based(r_channel, bits)
     g_new = quantize_channel_histogram_based(g_channel, bits)
     b_new = quantize_channel_histogram_based(b_channel, bits)
     
-    # Scaling untuk visualisasi agar terlihat di monitor
-    # Nilai 0-3 (2 bit) diubah kembali ke rentang 0-255 agar kontras terlihat
     factor = 255 / ((2**bits) - 1) if bits > 0 else 1
-    
     r_display = (r_new * factor).astype(np.uint8)
     g_display = (g_new * factor).astype(np.uint8)
     b_display = (b_new * factor).astype(np.uint8)
     
-    # Gabung kembali menjadi citra RGB
     img_reconstructed = np.stack((r_display, g_display, b_display), axis=2)
-    
     return img_reconstructed, img_array
 
-# --- UI / TAMPILAN (FRONTEND) ---
+def extract_dominant_colors(image_array, num_colors=10):
+    """Mengambil sampel warna unik yang terbentuk untuk ditampilkan di UI"""
+    pixels = image_array.reshape(-1, 3)
+    unique_colors = np.unique(pixels, axis=0)
+    if len(unique_colors) > num_colors:
+        indices = np.linspace(0, len(unique_colors)-1, num_colors, dtype=int)
+        return unique_colors[indices]
+    return unique_colors
 
-# SIDEBAR: Identitas Kelompok & Input
+# --- 3. UI / TAMPILAN (FRONTEND) ---
+
 with st.sidebar:
-    # Logo Lokal (Diambil dari folder image/logo-unpam.png)
-    # Pastikan file gambar benar-benar ada di path tersebut
+    # --- LOGO SECTION ---
     try:
-        st.image("image/logo-unpam.png", width=100)
+        col_logo1, col_logo2, col_logo3 = st.columns([1,2,1])
+        with col_logo2:
+            # PERBAIKAN: use_column_width diganti use_container_width
+            st.image("image/logo-unpam.png", use_container_width=True)
     except Exception:
-        st.error("Logo tidak ditemukan. Cek folder 'image'.")
+        st.warning("Logo not found")
     
-    st.title("Kelompok 6")
-    st.info("**Anggota Kelompok:**\n"
-            "1. Farid Nuhgraha\n"
-            "2. Fredy Fajar Adi Putra\n"
-            "3. Maulana Aulia Rahman\n"
-            "4. Muhamad Aziz Mufashshal\n"
-            "5. Muhammad Faiz Saputra")
+    st.markdown("<h3 style='text-align: center;'>Kelompok 6</h3>", unsafe_allow_html=True)
     
-    st.header("Pengaturan")
+    with st.expander("👥 Anggota Tim", expanded=True):
+        st.markdown("""
+        1. Farid Nuhgraha
+        2. Fredy Fajar Adi Putra
+        3. Maulana Aulia Rahman
+        4. Muhamad Aziz Mufashshal
+        5. Muhammad Faiz Saputra
+        """)
+    
+    st.markdown("---")
+    st.header("⚙️ Konfigurasi")
     uploaded_file = st.file_uploader("Upload Citra (JPG/PNG)", type=['jpg', 'png', 'jpeg'])
     
-    # Slider Bit (1-7 Bit)
-    bits = st.slider("Jumlah Bit (m)", 1, 7, 2)
-    st.caption(f"Jumlah Level Warna: {2**bits}")
+    bits = st.slider("Tingkat Kompresi (Bit)", 1, 7, 2, help="Semakin kecil bit, semakin sedikit variasi warnanya.")
+    
+    st.info(f"**Status:** {2**bits} Level Warna")
 
-# MAIN CONTENT
+
+# --- MAIN CONTENT ---
 st.title("Metode Kuantisasi Citra")
 st.markdown("**Implementasi Algoritma Berbasis Histogram (Non-Uniform)**")
 
 if uploaded_file is not None:
-    # Load Image
-    original_image = Image.open(uploaded_file).convert('RGB')
     
-    # Proses Image
-    result_array, original_array = process_image(original_image, bits)
-    result_image = Image.fromarray(result_array)
-    
-    # Hitung Metrik
-    mse, psnr = calculate_mse_psnr(original_array, result_array)
+    with st.spinner('Sedang memproses histogram pixel...'):
+        original_image = Image.open(uploaded_file).convert('RGB')
+        result_array, original_array = process_image(original_image, bits)
+        result_image = Image.fromarray(result_array)
+        mse, psnr = calculate_mse_psnr(original_array, result_array)
+        
+        palette = extract_dominant_colors(result_array, num_colors=8)
 
     # --- TABS VISUALISASI ---
-    tab1, tab2, tab3 = st.tabs(["🖼️ Visualisasi Citra", "📊 Analisis Histogram", "📝 Teori Singkat"])
+    tab1, tab2, tab3 = st.tabs(["🖼️ Hasil & Palet", "📊 Analisis Histogram", "📘 Teori"])
 
     with tab1:
-        col1, col2 = st.columns(2)
-        with col1:
-            st.subheader("Citra Asli")
-            st.image(original_image, use_column_width=True)
-            st.caption("Original 8-bit (256 level)")
-            
-        with col2:
-            st.subheader(f"Hasil Kuantisasi ({bits} Bit)")
-            st.image(result_image, use_column_width=True)
-            st.caption(f"Tereduksi menjadi {2**bits} level warna")
+        with st.container(border=True):
+            col1, col2 = st.columns(2)
+            with col1:
+                st.subheader("Original")
+                # PERBAIKAN: use_column_width diganti use_container_width
+                st.image(original_image, use_container_width=True)
+            with col2:
+                st.subheader(f"Hasil ({bits} Bit)")
+                # PERBAIKAN: use_column_width diganti use_container_width
+                st.image(result_image, use_container_width=True)
         
-        # Tombol Download
-        buf = io.BytesIO()
-        result_image.save(buf, format="PNG")
-        byte_im = buf.getvalue()
+        st.markdown("##### 🎨 Palet Warna Dominan yang Terbentuk")
+        st.caption(f"Dari jutaan kemungkinan warna, citra dikompresi menjadi kombinasi warna-warna ini (Sampel {len(palette)} warna):")
         
-        st.download_button(
-            label="⬇️ Download Hasil Citra",
-            data=byte_im,
-            file_name=f"hasil_kuantisasi_{bits}bit.png",
-            mime="image/png"
-        )
+        cols = st.columns(len(palette))
+        for idx, color in enumerate(palette):
+            with cols[idx]:
+                color_hex = '#{:02x}{:02x}{:02x}'.format(color[0], color[1], color[2])
+                st.markdown(f"""
+                <div style="background-color: {color_hex}; height: 40px; border-radius: 5px; border: 1px solid #ccc;" title="RGB: {color}"></div>
+                """, unsafe_allow_html=True)
+
+        st.divider()
+        
+        c_dl1, c_dl2, c_dl3 = st.columns([1,2,1])
+        with c_dl2:
+            buf = io.BytesIO()
+            result_image.save(buf, format="PNG")
+            byte_im = buf.getvalue()
+            st.download_button(
+                label="⬇️ Download Hasil Citra",
+                data=byte_im,
+                file_name=f"kuantisasi_{bits}bit.png",
+                mime="image/png",
+                use_container_width=True
+            )
 
     with tab2:
-        st.markdown("##### Perbandingan Distribusi Warna (Channel Merah)")
-        st.write("Grafik ini membuktikan bahwa metode histogram bekerja dengan mengelompokkan pixel.")
+        st.markdown("##### Analisis Distribusi Warna (Red Channel)")
         
-        # Ambil sampel channel merah untuk histogram
         r_orig = original_array[:,:,0].flatten()
         r_res = result_array[:,:,0].flatten()
         
         c1, c2 = st.columns(2)
         with c1:
-            st.write("**Histogram Asli**")
+            st.write("**Histogram Asli** (Rata/Halus)")
             fig, ax = plt.subplots(figsize=(6, 3))
-            ax.hist(r_orig, bins=256, color='red', alpha=0.5)
-            ax.set_title("Distribusi Pixel 0-255")
+            ax.hist(r_orig, bins=256, color='#ff4b4b', alpha=0.6)
+            ax.set_xlim([0,255])
+            ax.axis('off')
             st.pyplot(fig)
             
         with c2:
-            st.write(f"**Histogram Hasil ({2**bits} Level)**")
+            st.write(f"**Histogram Hasil** (Terkelompok jadi {2**bits} area)")
             fig2, ax2 = plt.subplots(figsize=(6, 3))
-            # Tampilkan histogram hasil
-            ax2.hist(r_res, bins=256, color='orange', alpha=0.7)
-            ax2.set_title("Pixel Terkelompok (Quantized)")
+            ax2.hist(r_res, bins=256, color='#004aad', alpha=0.7)
+            ax2.set_xlim([0,255])
+            ax2.axis('off')
             st.pyplot(fig2)
+            
+        st.info("💡 **Insight:** Perhatikan bagaimana histogram kanan memiliki celah kosong. Itu membuktikan warna telah 'ditarik' ke dalam kelompok-kelompok tertentu (Clustering).")
 
     with tab3:
         st.markdown("""
-        ### Penjelasan Metode
+        ### Penjelasan Singkat
+        Metode **Non-Uniform Histogram-Based Quantization** bekerja dengan cara:
+        1.  **Scanning:** Menghitung frekuensi setiap warna.
+        2.  **Grouping:** Membagi pixel menjadi $2^m$ kelompok yang memiliki jumlah populasi setara.
+        3.  **Mapping:** Mengganti nilai pixel asli dengan nilai perwakilan kelompoknya.
         
-        Metode yang digunakan adalah **Non-Uniform Histogram-Based Quantization**.
-        
-        1. **Prinsip Dasar:**
-           Berbeda dengan pemotongan biasa (uniform), metode ini membagi pixel berdasarkan **frekuensi kemunculan** di histogram.
-           
-        2. **Langkah Algoritma:**
-           * Hitung histogram citra asli.
-           * Bagi pixel menjadi $2^m$ kelompok dimana setiap kelompok memiliki jumlah pixel yang sama (Equal Frequency).
-           * Ubah nilai pixel lama menjadi nilai kelompok barunya.
-           
-        3. **Analisis Kualitas:**
-           Kami menggunakan MSE dan PSNR untuk mengukur seberapa besar informasi yang hilang (Lossy Compression).
+        Berbeda dengan *Uniform Quantization* (yang membagi rata jarak nilai 0-255), metode ini lebih cerdas karena **mengalokasikan lebih banyak detail pada warna yang paling sering muncul** dalam gambar.
         """)
 
-    # --- METRIK ERROR ---
-    st.divider()
-    st.subheader("📈 Analisis Kualitas (Error Metrics)")
-    
+    # --- METRIK ERROR DI BAWAH ---
+    st.subheader("📈 Skor Kualitas Citra")
     m1, m2 = st.columns(2)
-    m1.metric("MSE (Mean Squared Error)", f"{mse:.2f}", help="Semakin rendah semakin baik")
-    m2.metric("PSNR (Peak Signal-to-Noise Ratio)", f"{psnr:.2f} dB", help="Semakin tinggi semakin baik")
+    m1.metric("MSE (Error Rate)", f"{mse:.2f}", delta="- Loss" if mse > 0 else "Perfect", delta_color="inverse")
+    m2.metric("PSNR (Quality)", f"{psnr:.2f} dB", delta="Low" if psnr < 30 else "High")
     
-    if psnr < 30:
-        st.warning(f"Note: PSNR {psnr:.2f} dB menunjukkan kualitas citra menurun signifikan, wajar untuk kompresi {bits} bit.")
-
 else:
-    st.info("👋 Halo Kelompok 6! Silakan upload gambar di menu sebelah kiri untuk memulai demo.")
+    st.markdown("""
+    <div style="text-align: center; padding: 50px;">
+        <h3>👋 Selamat Datang!</h3>
+        <p>Silakan upload gambar melalui menu di sebelah kiri untuk memulai demonstrasi.</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+# --- FOOTER ---
+st.markdown("""
+    <div class="footer">
+        <p>Developed by <b>Kelompok 6</b> | Teknik Informatika - Universitas Pamulang © 2025</p>
+    </div>
+""", unsafe_allow_html=True)
