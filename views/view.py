@@ -5,6 +5,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 class AppView:
+    """
+    VIEW: Menangani tampilan UI.
+    """
     def setup_page(self):
         st.set_page_config(page_title="App Kuantisasi MVC", page_icon="🎓", layout="wide")
         st.markdown("""
@@ -27,7 +30,6 @@ class AppView:
         with st.sidebar:
             try:
                 c1, c2, c3 = st.columns([1,2,1])
-                # UPDATE 1: Ganti use_container_width=True menjadi width="stretch"
                 c2.image("image/logo-unpam.png", width="stretch")
             except: pass
             
@@ -43,7 +45,6 @@ class AppView:
             st.markdown("---")
             st.markdown("##### 📚 Referensi Level")
             df_ref = pd.DataFrame({'Bit': [1,2,3,7,8], 'Level': [2,4,8,128,256], 'Range': ['0-1','0-3','0-7','0-127','0-255']})
-            # UPDATE 2: Ganti use_container_width=True menjadi width="stretch"
             st.dataframe(df_ref, hide_index=True, width="stretch")
             
             return uploaded_file, bits
@@ -68,7 +69,6 @@ class AppView:
         
         with t1: # Tab Hasil
             c1, c2 = st.columns(2)
-            # UPDATE 3 & 4: Ganti use_container_width=True menjadi width="stretch"
             c1.subheader("Original"); c1.image(orig_img, width="stretch")
             c2.subheader(f"Hasil ({bits} Bit)"); c2.image(data['reconstructed_img'], width="stretch")
             
@@ -77,27 +77,20 @@ class AppView:
             for i, c in enumerate(palette):
                 hex_c = '#{:02x}{:02x}{:02x}'.format(c[0], c[1], c[2])
                 cols[i].markdown(f'<div style="background-color:{hex_c};height:25px;border-radius:3px;"></div>', unsafe_allow_html=True)
+            
             st.divider()
             b1, b2, b3 = st.columns([1,2,1])
             with b2:
                 buf = io.BytesIO()
                 data['reconstructed_img'].save(buf, format="PNG")
-                # UPDATE 5: Ganti use_container_width=True menjadi help (atau hapus jika error, tapi untuk tombol biasanya dihapus atau ganti ke use_container_width jika masih support)
-                # Note: Streamlit warning menyarankan "replace with width='stretch'".
-                # Namun untuk tombol download, parameter width='stretch' baru tersedia di versi sangat baru.
-                # Jika masih error di tombol, hapus saja param width-nya. Tapi kode di bawah mengikuti instruksi warning.
-                st.download_button("⬇️ Download Hasil", buf.getvalue(), f"hasil_{bits}bit.png", "image/png", use_container_width=True) 
-                # Revisi: Warning Anda muncul 8 kali. Di kode ini ada 8 elemen (logo, df, img1, img2, btn, r, g, b).
-                # Namun st.download_button kadang strict. Jika error berlanjut khusus di tombol, hapus `use_container_width` dari tombol ini.
-                # Untuk saat ini saya biarkan use_container_width=True khusus tombol karena seringkali tombol belum support 'width="stretch"' di semua versi, 
-                # tapi jika warning tetap muncul, ubah jadi `use_container_width=True` -> `use_container_width=True` (tetap) atau hapus.
-                # *Koreksi:* Berdasarkan log Anda, warning muncul terus menerus. Mari kita coba pakai width="stretch" untuk image dan dataframe saja yang paling umum.
+                # Menggunakan use_container_width=True untuk tombol download agar konsisten
+                st.download_button("⬇️ Download Hasil", buf.getvalue(), f"hasil_{bits}bit.png", "image/png", use_container_width=True)
 
         with t2: # Tab Kanal
+            # HAPUS teks di sini agar tidak error
             st.info("Visualisasi Kanal RGB Terpisah.")
             r, g, b = data['channels_display']
             c_r, c_g, c_b = st.columns(3)
-            # UPDATE 6, 7, 8: Ganti use_container_width=True menjadi width="stretch"
             c_r.image(r, caption="Red", width="stretch", clamp=True)
             c_g.image(g, caption="Green", width="stretch", clamp=True)
             c_b.image(b, caption="Blue", width="stretch", clamp=True)
@@ -108,6 +101,7 @@ class AppView:
             ax.hist(data['original_array'][:,:,0].flatten(), bins=256, color='red', alpha=0.3, label='Original', density=True)
             ax.hist(data['reconstructed_array'][:,:,0].flatten(), bins=256, color='blue', alpha=0.7, label='Hasil', histtype='step', linewidth=1.5, density=True)
             ax.legend(); st.pyplot(fig)
+            
             st.divider()
             st.subheader("2. Bukti Pemerataan")
             unique, counts = np.unique(data['raw_labels_r'].flatten(), return_counts=True)
@@ -117,6 +111,7 @@ class AppView:
             ax2.legend(); st.pyplot(fig2)
 
         with t4: # Tab Teori
+            # HAPUS teks di sini agar tidak error
             st.subheader("Simulasi Manual")
             st.table(pd.DataFrame({
                 'Intensitas': [10, 20, 30, 100, 150, 220],
