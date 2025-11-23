@@ -3,13 +3,14 @@ import pandas as pd
 import io
 import matplotlib.pyplot as plt
 import numpy as np
+from streamlit_image_comparison import image_comparison  # <--- LIBRARY BARU
 
 class AppView:
     """
     VIEW: Menangani tampilan UI.
     """
     def setup_page(self):
-        st.set_page_config(page_title="Web App Kuantisasi Kelompok 6", page_icon="🎓", layout="wide")
+        st.set_page_config(page_title="App Kuantisasi MVC", page_icon="🎓", layout="wide")
         st.markdown("""
             <style>
                 .block-container { padding-top: 1rem; padding-bottom: 3rem; }
@@ -35,7 +36,7 @@ class AppView:
             
             st.markdown("<div style='text-align: center; font-weight: bold;'>KELOMPOK 6</div>", unsafe_allow_html=True)
             with st.expander("👨‍💻 Anggota Tim"):
-                st.markdown("- Farid Nuhgraha\n- Fredy Fajar Adi Putra\n- Maulana Aulia Rahman\n- Muhamad Aziz Mufashshal\n- Muhammad Faiz Saputra\n- Ravail Shodikin")
+                st.markdown("- Farid Nuhgraha\n- Fredy Fajar Adi Putra\n- Maulana Aulia Rahman\n- Muhamad Aziz Mufashshal\n- Muhammad Faiz Saputra")
             
             st.divider()
             st.header("⚙️ Kontrol")
@@ -65,14 +66,27 @@ class AppView:
         m3.metric("PSNR (Quality)", f"{psnr:.2f} dB", delta="Low" if psnr<30 else "High")
 
     def render_tabs(self, orig_img, data, bits, palette):
-        t1, t2, t3, t4 = st.tabs(["🖼️ Hasil", "🎨 Bedah Kanal", "📊 Analisis", "📘 Teori"])
+        t1, t2, t3, t4 = st.tabs(["🖼️ Hasil (Slider)", "🎨 Bedah Kanal", "📊 Analisis", "📘 Teori"])
         
-        with t1: # Tab Hasil
-            c1, c2 = st.columns(2)
-            c1.subheader("Original"); c1.image(orig_img, width="stretch")
-            c2.subheader(f"Hasil ({bits} Bit)"); c2.image(data['reconstructed_img'], width="stretch")
+        with t1: # Tab Hasil dengan SLIDER KEREN
+            st.write("Geser garis vertikal di tengah gambar untuk melihat perbedaan **Original vs Hasil**.")
             
-            st.write("**Sampel Palet:**")
+            # --- FITUR BARU: IMAGE COMPARISON SLIDER ---
+            # Kita perlu convert PIL Image ke format yang bisa dibaca library ini
+            image_comparison(
+                img1=orig_img,
+                img2=data['reconstructed_img'],
+                label1="Original 8-Bit",
+                label2=f"Kuantisasi {bits}-Bit",
+                starting_position=50,
+                show_labels=True,
+                make_responsive=True,
+                in_memory=True
+            )
+            # -------------------------------------------
+            
+            st.divider()
+            st.write("**Sampel Palet Warna:**")
             cols = st.columns(len(palette))
             for i, c in enumerate(palette):
                 hex_c = '#{:02x}{:02x}{:02x}'.format(c[0], c[1], c[2])
@@ -99,7 +113,6 @@ class AppView:
             ax.hist(data['original_array'][:,:,0].flatten(), bins=256, color='red', alpha=0.3, label='Original', density=True)
             ax.hist(data['reconstructed_array'][:,:,0].flatten(), bins=256, color='blue', alpha=0.7, label='Hasil', histtype='step', linewidth=1.5, density=True)
             ax.legend(); st.pyplot(fig)
-            
             st.divider()
             st.subheader("2. Bukti Pemerataan")
             unique, counts = np.unique(data['raw_labels_r'].flatten(), return_counts=True)
@@ -110,12 +123,11 @@ class AppView:
 
         with t4: # Tab Teori
             st.subheader("Simulasi Manual")
-            # PERBAIKAN DI SINI: Semua angka 'Label' diberi tanda kutip agar jadi String
             st.table(pd.DataFrame({
                 'Intensitas': [10, 20, 30, 100, 150, 220],
                 'Freq': [2, 3, 2, 4, 3, 2],
                 'Kelompok': ['0', '0/1', '1', '1/2', '2/3', '3'],
-                'Label': ['0', '0/1', '1', '1/2', '2/3', '3'] # <-- Angka 0,1,3 sekarang jadi string '0','1','3'
+                'Label': ['0', '0/1', '1', '1/2', '2/3', '3']
             }))
 
     def render_footer(self):
