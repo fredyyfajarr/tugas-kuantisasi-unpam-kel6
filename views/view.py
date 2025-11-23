@@ -9,7 +9,7 @@ class AppView:
     VIEW: Menangani tampilan UI.
     """
     def setup_page(self):
-        st.set_page_config(page_title="App Kuantisasi Kelompok 6", page_icon="🎓", layout="wide")
+        st.set_page_config(page_title="Web App Kuantisasi Kelompok 6", page_icon="🎓", layout="wide")
         st.markdown("""
             <style>
                 .block-container { padding-top: 1rem; padding-bottom: 3rem; }
@@ -35,7 +35,7 @@ class AppView:
             
             st.markdown("<div style='text-align: center; font-weight: bold;'>KELOMPOK 6</div>", unsafe_allow_html=True)
             with st.expander("👨‍💻 Anggota Tim"):
-                st.markdown("- Farid Nuhgraha\n- Fredy Fajar Adi Putra\n- Maulana Aulia Rahman\n- Muhamad Aziz Mufashshal\n- Muhammad Faiz Saputra")
+                st.markdown("- Farid Nuhgraha\n- Fredy Fajar Adi Putra\n- Maulana Aulia Rahman\n- Muhamad Aziz Mufashshal\n- Muhammad Faiz Saputra\n- Ravail Shodikin")
             
             st.divider()
             st.header("⚙️ Kontrol")
