@@ -1,7 +1,5 @@
 import streamlit as st
 from PIL import Image
-import time  # <--- 1. Tambah ini
-
 from models.model import QuantizationModel
 from views.view import AppView
 
@@ -16,38 +14,31 @@ class AppController:
         self.view.render_header()
         
         if uploaded_file is not None:
-            # Tidak perlu spinner di sini karena kita mau ukur kecepatan aslinya
-            orig_img = Image.open(uploaded_file).convert('RGB')
+            with st.spinner('Memproses citra & visualisasi 3D...'):
+                orig_img = Image.open(uploaded_file).convert('RGB')
+                
+                # 1. Proses Gambar
+                result_data = self.model.process_image_cached(orig_img, bits)
+                
+                # 2. Hitung Metrik
+                mse, psnr = self.model.calculate_mse_psnr(
+                    result_data['original_array'], 
+                    result_data['reconstructed_array']
+                )
+                
+                # 3. Ekstrak Data untuk Visualisasi
+                palette = self.model.extract_palette(result_data['reconstructed_array'], 8)
+                
+                # --- DATA 3D BARU ---
+                # Mengambil sampel data untuk plot 3D (agar ringan, ambil 500 sampel saja)
+                df_3d_orig = self.model.get_3d_plot_data(result_data['original_array'], num_samples=500)
+                df_3d_res = self.model.get_3d_plot_data(result_data['reconstructed_array'], num_samples=500)
+                # --------------------
             
-            # --- MULAI STOPWATCH ---
-            start_time = time.time() 
-            
-            # PROSES BERAT (YANG DI-CACHE)
-            result_data = self.model.process_image_cached(orig_img, bits)
-            
-            # --- STOP STOPWATCH ---
-            end_time = time.time()
-            durasi = end_time - start_time
-            
-            # CETAK HASIL KE TERMINAL
-            print(f"⏱️ [Bit: {bits}] Waktu Proses: {durasi:.6f} detik") 
-            # Jika durasi 0.000000, berarti diambil dari CACHE (Super Cepat)
-
-            # Lanjut proses ringan lainnya...
-            mse, psnr = self.model.calculate_mse_psnr(
-                result_data['original_array'], 
-                result_data['reconstructed_array']
-            )
-            palette = self.model.extract_palette(result_data['reconstructed_array'], 8)
-            
+            # 4. Render UI
             self.view.render_dashboard(bits, mse, psnr)
-            self.view.render_tabs(orig_img, result_data, bits, palette)
-            
-            # Tampilkan info kecepatan di Web juga (Opsional, buat pamer ke dosen)
-            if durasi < 0.001:
-                st.toast(f"⚡ INSTAN! Diambil dari Cache ({durasi:.4f} det)", icon="🚀")
-            else:
-                st.toast(f"🐢 Menghitung baru... ({durasi:.4f} det)", icon="⚙️")
+            # Pass data 3D ke View
+            self.view.render_tabs(orig_img, result_data, bits, palette, df_3d_orig, df_3d_res)
         
         else:
             self.view.render_empty_state()

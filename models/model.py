@@ -23,20 +23,33 @@ class QuantizationModel:
             return unique[idx]
         return unique
 
-    # --- FUNGSI STATIC & CACHED (Agar Cepat) ---
-    # Kita buat static agar Streamlit bisa men-cache hasilnya tanpa bingung dengan 'self'
-    
+    def get_3d_plot_data(self, image_array, num_samples=1000):
+        """
+        Mengambil sampel pixel acak untuk visualisasi 3D agar ringan.
+        """
+        # Ratakan array jadi list of pixels
+        pixels = image_array.reshape(-1, 3)
+        
+        # Jika pixel total lebih banyak dari sampel, ambil acak
+        if len(pixels) > num_samples:
+            indices = np.random.choice(len(pixels), num_samples, replace=False)
+            sampled_pixels = pixels[indices]
+        else:
+            sampled_pixels = pixels
+            
+        # Buat DataFrame untuk Plotly
+        df = pd.DataFrame(sampled_pixels, columns=['R', 'G', 'B'])
+        # Tambahkan kolom warna HEX agar titiknya berwarna sesuai aslinya
+        df['color'] = df.apply(lambda row: '#{:02x}{:02x}{:02x}'.format(row['R'], row['G'], row['B']), axis=1)
+        return df
+
+    # --- FUNGSI STATIC & CACHED ---
     @staticmethod
     @st.cache_data(show_spinner=False)
     def process_image_cached(image, bits):
-        """
-        Logika inti pemrosesan gambar. 
-        Di-cache: Jika input gambar & bit sama, hasil langsung diambil dari memori.
-        """
         img_array = np.array(image)
         r, g, b = img_array[:,:,0], img_array[:,:,1], img_array[:,:,2]
         
-        # Helper function untuk kuantisasi (Equal Frequency)
         def quantize_channel(flat_channel, b_bits):
             num_levels = 2 ** b_bits
             try:
@@ -44,12 +57,10 @@ class QuantizationModel:
             except ValueError:
                 return pd.qcut(flat_channel, q=num_levels, labels=False, duplicates='drop')
 
-        # Proses per kanal
         r_labels = quantize_channel(r.flatten(), bits)
         g_labels = quantize_channel(g.flatten(), bits)
         b_labels = quantize_channel(b.flatten(), bits)
         
-        # Reshape & Scaling
         r_new = r_labels.reshape(r.shape)
         g_new = g_labels.reshape(g.shape)
         b_new = b_labels.reshape(b.shape)
@@ -62,7 +73,6 @@ class QuantizationModel:
         
         img_reconstructed = np.stack((r_disp, g_disp, b_disp), axis=2)
         
-        # Kembalikan Dictionary Data
         return {
             'reconstructed_img': Image.fromarray(img_reconstructed),
             'reconstructed_array': img_reconstructed,
