@@ -83,11 +83,9 @@ class AppView:
             with b2:
                 buf = io.BytesIO()
                 data['reconstructed_img'].save(buf, format="PNG")
-                # Menggunakan use_container_width=True untuk tombol download agar konsisten
                 st.download_button("⬇️ Download Hasil", buf.getvalue(), f"hasil_{bits}bit.png", "image/png", use_container_width=True)
 
         with t2: # Tab Kanal
-            # HAPUS teks di sini agar tidak error
             st.info("Visualisasi Kanal RGB Terpisah.")
             r, g, b = data['channels_display']
             c_r, c_g, c_b = st.columns(3)
@@ -111,13 +109,13 @@ class AppView:
             ax2.legend(); st.pyplot(fig2)
 
         with t4: # Tab Teori
-            # HAPUS teks di sini agar tidak error
             st.subheader("Simulasi Manual")
+            # PERBAIKAN DI SINI: Semua angka 'Label' diberi tanda kutip agar jadi String
             st.table(pd.DataFrame({
                 'Intensitas': [10, 20, 30, 100, 150, 220],
                 'Freq': [2, 3, 2, 4, 3, 2],
                 'Kelompok': ['0', '0/1', '1', '1/2', '2/3', '3'],
-                'Label': [0, '0/1', 1, '1/2', '2/3', 3]
+                'Label': ['0', '0/1', '1', '1/2', '2/3', '3'] # <-- Angka 0,1,3 sekarang jadi string '0','1','3'
             }))
 
     def render_footer(self):
