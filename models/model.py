@@ -23,24 +23,28 @@ class QuantizationModel:
             return unique[idx]
         return unique
 
-    def get_3d_plot_data(self, image_array, num_samples=500):
-        """
-        Mengambil sampel pixel acak untuk visualisasi 3D agar ringan & tidak bikin HANG.
-        """
-        pixels = image_array.reshape(-1, 3)
-        
-        # Ambil sampel acak jika data terlalu banyak
-        if len(pixels) > num_samples:
-            indices = np.random.choice(len(pixels), num_samples, replace=False)
-            sampled_pixels = pixels[indices]
-        else:
-            sampled_pixels = pixels
-            
-        df = pd.DataFrame(sampled_pixels, columns=['R', 'G', 'B'])
-        df['color'] = df.apply(lambda row: '#{:02x}{:02x}{:02x}'.format(row['R'], row['G'], row['B']), axis=1)
+    def get_decode_stats(self, raw_labels):
+        unique, counts = np.unique(np.array(raw_labels).flatten(), return_counts=True)
+        df = pd.DataFrame({
+            'Label': unique,
+            'Total Pixel': counts,
+            'Persentase': (counts / counts.sum() * 100).round(2).astype(str) + '%'
+        })
         return df
 
-    # --- FUNGSI STATIC & CACHED (Agar Cepat) ---
+    # --- FITUR BARU: CODEBOOK (KAMUS WARNA) ---
+    def get_codebook(self, original_channel, raw_labels):
+        """
+        Menghitung nilai rata-rata pixel asli untuk setiap label kelompok.
+        Contoh: Label 0 mewakili rata-rata intensitas 45.
+        """
+        df = pd.DataFrame({'val': original_channel.flatten(), 'label': raw_labels.flatten()})
+        # Hitung rata-rata nilai asli per grup label
+        codebook = df.groupby('label')['val'].mean().round(1).reset_index()
+        codebook.columns = ['Label Kelompok', 'Nilai Rata-Rata Asli']
+        return codebook
+    # ------------------------------------------
+
     @staticmethod
     @st.cache_data(show_spinner=False)
     def process_image_cached(image, bits):
@@ -75,5 +79,5 @@ class QuantizationModel:
             'reconstructed_array': img_reconstructed,
             'original_array': img_array,
             'channels_display': (r_disp, g_disp, b_disp),
-            'raw_labels_r': r_labels
+            'raw_labels_r': r_new # Mengirim versi 2D agar bisa divisualisasikan
         }

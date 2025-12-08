@@ -61,9 +61,9 @@ class AppView:
         m2.metric("MSE (Error)", f"{mse:.1f}", delta="-Lossy" if mse>0 else "Perfect", delta_color="inverse")
         m3.metric("PSNR (Quality)", f"{psnr:.2f} dB", delta="Low" if psnr<30 else "High")
 
-    # Hapus argumen 3D yang tidak terpakai
-    def render_tabs(self, orig_img, data, bits, palette):
-        t1, t2, t3, t4 = st.tabs(["🖼️ Hasil (Slider)", "🎨 Bedah Kanal", "📊 Analisis", "📘 Teori"])
+    # Tambah argumen codebook
+    def render_tabs(self, orig_img, data, bits, palette, decode_stats, codebook):
+        t1, t2, t3, t4 = st.tabs(["🖼️ Hasil (Slider)", "🎨 Bedah Kanal", "📊 Analisis & Decode", "📘 Teori"])
         
         with t1:
             st.write("Geser slider di gambar untuk membandingkan:")
@@ -92,27 +92,39 @@ class AppView:
             st.info("Visualisasi Kanal RGB Terpisah.")
             r, g, b = data['channels_display']
             c_r, c_g, c_b = st.columns(3)
-            # Karena gambar sudah kecil (400px), ini akan sangat ringan
             c_r.image(r, caption="Red", width="stretch", clamp=True)
             c_g.image(g, caption="Green", width="stretch", clamp=True)
             c_b.image(b, caption="Blue", width="stretch", clamp=True)
 
         with t3:
-            # HAPUS 3D PLOT, Sisakan Histogram Overlay saja (Ringan & Informatif)
-            st.subheader("1. Histogram Overlay")
-            st.caption("Grafik ini membuktikan pemadatan warna.")
+            st.subheader("1. Struktur Data Hasil Decode (Raw)")
+            st.caption(f"Pembuktian bahwa komputer hanya menyimpan indeks **0 sampai {2**bits-1}**.")
+            
+            c_raw1, c_raw2, c_raw3 = st.columns([2, 1, 1])
+            with c_raw1:
+                st.markdown("**Matriks Data (Sampel 15x15):**")
+                # Highlight angka agar terlihat polanya
+                raw_sample = data['raw_labels_r'][:15, :15]
+                st.dataframe(pd.DataFrame(raw_sample).style.background_gradient(cmap='Blues'), height=300, use_container_width=True)
+            
+            with c_raw2:
+                st.markdown("**Statistik Label:**")
+                st.dataframe(decode_stats, hide_index=True, use_container_width=True)
+
+            with c_raw3:
+                # --- FITUR BARU: CODEBOOK ---
+                st.markdown("**Kamus (Codebook):**")
+                st.dataframe(codebook, hide_index=True, use_container_width=True)
+                st.caption("Nilai asli yang diwakili oleh setiap label.")
+                # ----------------------------
+
+            st.divider()
+            
+            st.subheader("2. Histogram Overlay")
             fig, ax = plt.subplots(figsize=(10, 4))
             ax.hist(data['original_array'][:,:,0].flatten(), bins=256, color='red', alpha=0.3, label='Original', density=True)
             ax.hist(data['reconstructed_array'][:,:,0].flatten(), bins=256, color='blue', alpha=0.7, label='Hasil', histtype='step', linewidth=1.5, density=True)
             ax.legend(); st.pyplot(fig)
-            
-            st.divider()
-            st.subheader("2. Bukti Pemerataan")
-            unique, counts = np.unique(data['raw_labels_r'].flatten(), return_counts=True)
-            fig2, ax2 = plt.subplots(figsize=(10, 3))
-            ax2.bar(unique, counts, color='#004aad', alpha=0.8)
-            ax2.axhline(y=np.mean(counts), color='red', linestyle='--', label='Target Rata-rata')
-            ax2.legend(); st.pyplot(fig2)
 
         with t4:
             st.subheader("Simulasi Manual")
