@@ -5,7 +5,7 @@ import streamlit as st
 
 class QuantizationModel:
     """
-    MODEL: Menangani logika bisnis, algoritma, dan data.
+    MODEL: Logika Bisnis & Algoritma
     """
 
     def calculate_mse_psnr(self, original, compressed):
@@ -23,27 +23,24 @@ class QuantizationModel:
             return unique[idx]
         return unique
 
-    def get_3d_plot_data(self, image_array, num_samples=1000):
+    def get_3d_plot_data(self, image_array, num_samples=500):
         """
-        Mengambil sampel pixel acak untuk visualisasi 3D agar ringan.
+        Mengambil sampel pixel acak untuk visualisasi 3D agar ringan & tidak bikin HANG.
         """
-        # Ratakan array jadi list of pixels
         pixels = image_array.reshape(-1, 3)
         
-        # Jika pixel total lebih banyak dari sampel, ambil acak
+        # Ambil sampel acak jika data terlalu banyak
         if len(pixels) > num_samples:
             indices = np.random.choice(len(pixels), num_samples, replace=False)
             sampled_pixels = pixels[indices]
         else:
             sampled_pixels = pixels
             
-        # Buat DataFrame untuk Plotly
         df = pd.DataFrame(sampled_pixels, columns=['R', 'G', 'B'])
-        # Tambahkan kolom warna HEX agar titiknya berwarna sesuai aslinya
         df['color'] = df.apply(lambda row: '#{:02x}{:02x}{:02x}'.format(row['R'], row['G'], row['B']), axis=1)
         return df
 
-    # --- FUNGSI STATIC & CACHED ---
+    # --- FUNGSI STATIC & CACHED (Agar Cepat) ---
     @staticmethod
     @st.cache_data(show_spinner=False)
     def process_image_cached(image, bits):
