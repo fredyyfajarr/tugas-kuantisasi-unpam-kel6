@@ -3,13 +3,9 @@ import pandas as pd
 import io
 import matplotlib.pyplot as plt
 import numpy as np
-import plotly.express as px
 from streamlit_image_comparison import image_comparison
 
 class AppView:
-    """
-    VIEW: Tampilan UI (Frontend)
-    """
     def setup_page(self):
         st.set_page_config(page_title="App Kuantisasi MVC", page_icon="🎓", layout="wide")
         st.markdown("""
@@ -65,8 +61,9 @@ class AppView:
         m2.metric("MSE (Error)", f"{mse:.1f}", delta="-Lossy" if mse>0 else "Perfect", delta_color="inverse")
         m3.metric("PSNR (Quality)", f"{psnr:.2f} dB", delta="Low" if psnr<30 else "High")
 
-    def render_tabs(self, orig_img, data, bits, palette, df_3d_orig, df_3d_res):
-        t1, t2, t3, t4 = st.tabs(["🖼️ Hasil (Slider)", "🎨 Bedah Kanal", "📊 Analisis & 3D", "📘 Teori"])
+    # Hapus argumen 3D yang tidak terpakai
+    def render_tabs(self, orig_img, data, bits, palette):
+        t1, t2, t3, t4 = st.tabs(["🖼️ Hasil (Slider)", "🎨 Bedah Kanal", "📊 Analisis", "📘 Teori"])
         
         with t1:
             st.write("Geser slider di gambar untuk membandingkan:")
@@ -95,37 +92,22 @@ class AppView:
             st.info("Visualisasi Kanal RGB Terpisah.")
             r, g, b = data['channels_display']
             c_r, c_g, c_b = st.columns(3)
+            # Karena gambar sudah kecil (400px), ini akan sangat ringan
             c_r.image(r, caption="Red", width="stretch", clamp=True)
             c_g.image(g, caption="Green", width="stretch", clamp=True)
             c_b.image(b, caption="Blue", width="stretch", clamp=True)
 
         with t3:
-            # 3D PLOT
-            st.subheader("1. Visualisasi Ruang Warna 3D (RGB Cube)")
-            st.caption("Membandingkan sebaran warna Original (Kiri) vs Hasil (Kanan). **Grafik dapat diputar/zoom.**")
-            col_3d_1, col_3d_2 = st.columns(2)
-            with col_3d_1:
-                st.markdown("**Original**")
-                fig_3d_orig = px.scatter_3d(df_3d_orig, x='R', y='G', z='B', color='color', color_discrete_sequence=df_3d_orig['color'].tolist(), range_x=[0,255], range_y=[0,255], range_z=[0,255], opacity=0.7)
-                fig_3d_orig.update_layout(margin=dict(l=0, r=0, b=0, t=0), height=300, showlegend=False)
-                st.plotly_chart(fig_3d_orig, use_container_width=True)
-            with col_3d_2:
-                st.markdown(f"**Hasil {bits}-Bit**")
-                fig_3d_res = px.scatter_3d(df_3d_res, x='R', y='G', z='B', color='color', color_discrete_sequence=df_3d_res['color'].tolist(), range_x=[0,255], range_y=[0,255], range_z=[0,255], opacity=0.9)
-                fig_3d_res.update_layout(margin=dict(l=0, r=0, b=0, t=0), height=300, showlegend=False)
-                st.plotly_chart(fig_3d_res, use_container_width=True)
-            
-            st.divider()
-            
-            # Histogram
-            st.subheader("2. Histogram Overlay")
-            fig, ax = plt.subplots(figsize=(10, 3))
+            # HAPUS 3D PLOT, Sisakan Histogram Overlay saja (Ringan & Informatif)
+            st.subheader("1. Histogram Overlay")
+            st.caption("Grafik ini membuktikan pemadatan warna.")
+            fig, ax = plt.subplots(figsize=(10, 4))
             ax.hist(data['original_array'][:,:,0].flatten(), bins=256, color='red', alpha=0.3, label='Original', density=True)
             ax.hist(data['reconstructed_array'][:,:,0].flatten(), bins=256, color='blue', alpha=0.7, label='Hasil', histtype='step', linewidth=1.5, density=True)
             ax.legend(); st.pyplot(fig)
             
-            # Bar Chart
-            st.subheader("3. Bukti Pemerataan")
+            st.divider()
+            st.subheader("2. Bukti Pemerataan")
             unique, counts = np.unique(data['raw_labels_r'].flatten(), return_counts=True)
             fig2, ax2 = plt.subplots(figsize=(10, 3))
             ax2.bar(unique, counts, color='#004aad', alpha=0.8)
