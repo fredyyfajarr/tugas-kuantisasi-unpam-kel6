@@ -4,4 +4,3 @@ pandas
 Pillow
 matplotlib
 streamlit-image-comparison
-plotly

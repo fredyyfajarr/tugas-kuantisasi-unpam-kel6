@@ -24,6 +24,7 @@ class QuantizationModel:
         return unique
 
     def get_decode_stats(self, raw_labels):
+        """Statistik jumlah pixel per kelompok"""
         unique, counts = np.unique(np.array(raw_labels).flatten(), return_counts=True)
         df = pd.DataFrame({
             'Label': unique,
@@ -32,18 +33,12 @@ class QuantizationModel:
         })
         return df
 
-    # --- FITUR BARU: CODEBOOK (KAMUS WARNA) ---
     def get_codebook(self, original_channel, raw_labels):
-        """
-        Menghitung nilai rata-rata pixel asli untuk setiap label kelompok.
-        Contoh: Label 0 mewakili rata-rata intensitas 45.
-        """
+        """Kamus Warna: Nilai rata-rata asli untuk setiap label"""
         df = pd.DataFrame({'val': original_channel.flatten(), 'label': raw_labels.flatten()})
-        # Hitung rata-rata nilai asli per grup label
         codebook = df.groupby('label')['val'].mean().round(1).reset_index()
         codebook.columns = ['Label Kelompok', 'Nilai Rata-Rata Asli']
         return codebook
-    # ------------------------------------------
 
     @staticmethod
     @st.cache_data(show_spinner=False)
@@ -62,6 +57,7 @@ class QuantizationModel:
         g_labels = quantize_channel(g.flatten(), bits)
         b_labels = quantize_channel(b.flatten(), bits)
         
+        # Reshape ke 2D agar bisa divisualisasikan di View
         r_new = r_labels.reshape(r.shape)
         g_new = g_labels.reshape(g.shape)
         b_new = b_labels.reshape(b.shape)
@@ -79,5 +75,5 @@ class QuantizationModel:
             'reconstructed_array': img_reconstructed,
             'original_array': img_array,
             'channels_display': (r_disp, g_disp, b_disp),
-            'raw_labels_r': r_new # Mengirim versi 2D agar bisa divisualisasikan
+            'raw_labels_r': r_new  # Penting: Mengirim data 2D
         }

@@ -12,7 +12,6 @@ class AppView:
             <style>
                 .block-container { padding-top: 1rem; padding-bottom: 3rem; }
                 h1 { color: #004aad; font-family: 'Helvetica', sans-serif; font-weight: 800; }
-                /* Styling untuk Kotak Metrik */
                 div[data-testid="metric-container"] {
                     background-color: #f8f9fa; 
                     border: 1px solid #e0e0e0;
@@ -38,7 +37,6 @@ class AppView:
             
             st.markdown("<div style='text-align: center; font-weight: bold;'>KELOMPOK 6</div>", unsafe_allow_html=True)
             with st.expander("👨‍💻 Anggota Tim"):
-                # UPDATE: Menambahkan Ravail Shodikin
                 st.markdown("""
                 - Farid Nuhgraha
                 - Fredy Fajar Adi Putra
@@ -69,8 +67,7 @@ class AppView:
 
     def format_bytes(self, size):
         for unit in ['B', 'KB', 'MB', 'GB']:
-            if size < 1024.0:
-                return f"{size:.2f} {unit}"
+            if size < 1024.0: return f"{size:.2f} {unit}"
             size /= 1024.0
         return f"{size:.2f} GB"
 
@@ -85,32 +82,10 @@ class AppView:
         
         st.subheader("📊 Statistik Kualitas & Ukuran File")
         m1, m2, m3, m4 = st.columns(4)
-        
         m1.metric("Bit Depth", f"{bits} Bit", f"{2**bits} Level")
-        
-        # UPDATE: Menambahkan Tooltip Penjelasan (help=...)
-        m2.metric(
-            "MSE (Error)", 
-            f"{mse:.1f}", 
-            delta="-Lossy" if mse>0 else "Perfect", 
-            delta_color="inverse",
-            help="Mean Squared Error. Semakin mendekati 0, semakin mirip gambar hasil dengan aslinya."
-        )
-        
-        m3.metric(
-            "PSNR (Kualitas)", 
-            f"{psnr:.2f} dB", 
-            delta="Low" if psnr<30 else "High",
-            help="Peak Signal-to-Noise Ratio.\n> 30 dB: Kualitas Bagus\n20-30 dB: Kualitas Sedang\n< 20 dB: Kualitas Buruk"
-        )
-        
-        m4.metric(
-            "Ukuran File", 
-            str_comp, 
-            f"{delta_sym} {str_diff} ({size_stats['percent']:.1f}%)",
-            delta_color=delta_color,
-            help=f"Ukuran Asli: {str_orig}\nUkuran Hasil: {str_comp}"
-        )
+        m2.metric("MSE (Error)", f"{mse:.1f}", delta="-Lossy" if mse>0 else "Perfect", delta_color="inverse", help="Mean Squared Error. Semakin kecil semakin baik.")
+        m3.metric("PSNR (Kualitas)", f"{psnr:.2f} dB", delta="Low" if psnr<30 else "High", help="> 30 dB: Bagus\n20-30 dB: Sedang\n< 20 dB: Buruk")
+        m4.metric("Ukuran File", str_comp, f"{delta_sym} {str_diff} ({size_stats['percent']:.1f}%)", delta_color=delta_color, help=f"Asli: {str_orig}\nHasil: {str_comp}")
         st.divider()
 
     def render_tabs(self, orig_img, data, bits, palette, decode_stats, codebook):
@@ -171,16 +146,16 @@ class AppView:
             fig, ax = plt.subplots(figsize=(10, 4))
             ax.hist(data['original_array'][:,:,0].flatten(), bins=256, color='red', alpha=0.3, label='Original', density=True)
             ax.hist(data['reconstructed_array'][:,:,0].flatten(), bins=256, color='blue', alpha=0.7, label='Hasil', histtype='step', linewidth=1.5, density=True)
-            ax.legend(); st.pyplot(fig)
+            ax.legend()
+            st.pyplot(fig)
+            plt.close(fig) # CLEANUP MEMORY
 
         with t4:
             st.subheader("1. Alur Sistem (Flowchart)")
-            # UPDATE: Flowchart Otomatis menggunakan Graphviz
             st.graphviz_chart("""
                 digraph {
                     rankdir=LR;
                     node [shape=box, style=filled, fillcolor="#f0f2f6", fontname="Helvetica"];
-                    
                     Start [shape=oval, fillcolor="#d1e7dd", label="Mulai"];
                     Input [label="Upload Citra\n(RGB)"];
                     Resize [label="Resize Otomatis\n(Max 1500px)"];
@@ -188,11 +163,9 @@ class AppView:
                     Stats [label="Hitung Metrik\n(MSE, PSNR, Size)"];
                     Output [label="Tampilkan Hasil\n(View)"];
                     End [shape=oval, fillcolor="#f8d7da", label="Selesai"];
-
                     Start -> Input -> Resize -> Process -> Stats -> Output -> End;
                 }
             """)
-            
             st.divider()
             st.subheader("2. Simulasi Manual")
             st.table(pd.DataFrame({

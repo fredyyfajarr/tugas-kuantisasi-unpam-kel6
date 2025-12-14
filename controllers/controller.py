@@ -1,6 +1,6 @@
 import streamlit as st
 from PIL import Image
-import io  # <--- Perlu ini untuk hitung size
+import io
 from models.model import QuantizationModel
 from views.view import AppView
 
@@ -21,13 +21,16 @@ class AppController:
             with st.status("Sedang memproses citra...", expanded=True) as status:
                 st.write("📂 Membaca file gambar...")
                 
-                # --- HITUNG SIZE ASLI ---
-                # uploaded_file.size memberikan ukuran dalam bytes
                 orig_file_size = uploaded_file.size
-                # ------------------------
                 
-                orig_img = Image.open(uploaded_file).convert('RGB')
-                
+                # Try-Except untuk menangani file rusak
+                try:
+                    orig_img = Image.open(uploaded_file).convert('RGB')
+                except Exception as e:
+                    st.error(f"Gagal membaca file. Pastikan format gambar valid. Error: {e}")
+                    status.update(label="Gagal", state="error")
+                    return
+
                 st.write("📐 Menyesuaikan resolusi (Anti-Lag)...")
                 if orig_img.width > 1500 or orig_img.height > 1500:
                      orig_img.thumbnail((1500, 1500))
@@ -35,25 +38,20 @@ class AppController:
                 st.write(f"🧮 Menjalankan algoritma kuantisasi ({bits} Bit)...")
                 result_data = self.model.process_image_cached(orig_img, bits)
                 
-                # --- HITUNG SIZE HASIL ---
                 st.write("💾 Menghitung ukuran file hasil...")
                 buf = io.BytesIO()
-                # Simpan ke memori sebagai PNG (sesuai tombol download) untuk tahu ukurannya
                 result_data['reconstructed_img'].save(buf, format="PNG")
-                compressed_file_size = buf.tell() # Ukuran dalam bytes
+                compressed_file_size = buf.tell()
                 
-                # Hitung Persentase & Selisih
+                # Hitung Persentase
                 size_diff = orig_file_size - compressed_file_size
                 compression_ratio = (size_diff / orig_file_size) * 100
-                
-                # Simpan data size ke dictionary result agar rapi
                 size_stats = {
                     'orig': orig_file_size,
                     'compressed': compressed_file_size,
                     'diff': size_diff,
                     'percent': compression_ratio
                 }
-                # -------------------------
                 
                 st.write("📊 Menghitung statistik & metrik...")
                 mse, psnr = self.model.calculate_mse_psnr(
@@ -69,7 +67,6 @@ class AppController:
 
                 status.update(label="Proses Selesai!", state="complete", expanded=False)
             
-            # Kirim 'size_stats' ke View
             self.view.render_dashboard(bits, mse, psnr, size_stats)
             self.view.render_tabs(orig_img, result_data, bits, palette, decode_stats, codebook)
         
