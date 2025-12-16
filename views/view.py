@@ -3,6 +3,7 @@ import pandas as pd
 import io
 import matplotlib.pyplot as plt
 import numpy as np
+from PIL import Image
 from streamlit_image_comparison import image_comparison
 
 class AppView:
@@ -71,6 +72,48 @@ class AppView:
             size /= 1024.0
         return f"{size:.2f} GB"
 
+    # --- FUNGSI BANTUAN BARU UNTUK RENDER KANAL ---
+    def _render_channel_component(self, col, title, orig_arr, res_arr, filename_suffix):
+        """
+        Helper untuk menampilkan gambar kanal, hitung size before-after, dan tombol download.
+        """
+        with col:
+            st.markdown(f"**{title}**")
+            
+            # 1. Tampilkan Gambar Hasil
+            st.image(res_arr, caption=f"Channel {title} (Hasil)", width="stretch", clamp=True)
+            
+            # 2. Hitung Size Asli (Before)
+            buf_orig = io.BytesIO()
+            Image.fromarray(orig_arr).convert("L").save(buf_orig, format="PNG")
+            size_orig = buf_orig.tell()
+            
+            # 3. Hitung Size Hasil (After)
+            buf_res = io.BytesIO()
+            Image.fromarray(res_arr).convert("L").save(buf_res, format="PNG")
+            size_res = buf_res.tell()
+            
+            # 4. Tampilkan Metrik
+            diff = size_orig - size_res
+            percent = (diff / size_orig) * 100 if size_orig > 0 else 0
+            
+            st.metric(
+                label="Ukuran File",
+                value=self.format_bytes(size_res),
+                delta=f"↓ {percent:.1f}% ({self.format_bytes(diff)})",
+                delta_color="normal"
+            )
+            
+            # 5. Tombol Download
+            st.download_button(
+                label=f"⬇️ {title}",
+                data=buf_res.getvalue(),
+                file_name=f"channel_{filename_suffix}.png",
+                mime="image/png",
+                use_container_width=True
+            )
+    # -----------------------------------------------
+
     def render_dashboard(self, bits, mse, psnr, size_stats):
         str_orig = self.format_bytes(size_stats['orig'])
         str_comp = self.format_bytes(size_stats['compressed'])
@@ -112,15 +155,30 @@ class AppView:
             with b2:
                 buf = io.BytesIO()
                 data['reconstructed_img'].save(buf, format="PNG")
-                st.download_button("⬇️ Download Hasil", buf.getvalue(), f"hasil_{bits}bit.png", "image/png", use_container_width=True)
+                st.download_button("⬇️ Download Hasil Full", buf.getvalue(), f"hasil_{bits}bit.png", "image/png", use_container_width=True)
 
         with t2:
-            st.info("Visualisasi Kanal RGB Terpisah.")
-            r, g, b = data['channels_display']
+            st.info("Visualisasi Pemecahan Kanal RGB (Merah, Hijau, Biru) dan analisis kompresi per kanal.")
+            
+            # Ambil data Hasil Kuantisasi
+            r_res, g_res, b_res = data['channels_display']
+            
+            # Ambil data Asli (Original) untuk perbandingan size
+            orig_arr = data['original_array']
+            r_orig = orig_arr[:,:,0]
+            g_orig = orig_arr[:,:,1]
+            b_orig = orig_arr[:,:,2]
+            
             c_r, c_g, c_b = st.columns(3)
-            c_r.image(r, caption="Red", width="stretch", clamp=True)
-            c_g.image(g, caption="Green", width="stretch", clamp=True)
-            c_b.image(b, caption="Blue", width="stretch", clamp=True)
+            
+            # Render Kanal Merah
+            self._render_channel_component(c_r, "Red (Merah)", r_orig, r_res, "red")
+            
+            # Render Kanal Hijau
+            self._render_channel_component(c_g, "Green (Hijau)", g_orig, g_res, "green")
+            
+            # Render Kanal Biru
+            self._render_channel_component(c_b, "Blue (Biru)", b_orig, b_res, "blue")
 
         with t3:
             st.subheader("1. Struktur Data Hasil Decode (Raw)")
@@ -148,7 +206,7 @@ class AppView:
             ax.hist(data['reconstructed_array'][:,:,0].flatten(), bins=256, color='blue', alpha=0.7, label='Hasil', histtype='step', linewidth=1.5, density=True)
             ax.legend()
             st.pyplot(fig)
-            plt.close(fig) # CLEANUP MEMORY
+            plt.close(fig) 
 
         with t4:
             st.subheader("1. Alur Sistem (Flowchart)")
